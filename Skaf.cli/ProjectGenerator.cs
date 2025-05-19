@@ -41,6 +41,7 @@ public static class StructureGenerator
     {
         var summary = new GeneratedStructureSummary();
 
+        //todo depends on should use project references properly but its important to create projects first in the right order
         if (structure.Services != null)
         {
             foreach (var service in structure.Services)
@@ -98,33 +99,40 @@ public static class StructureGenerator
         var testPath = Path.Combine(rootPath, "tests");
 
         Directory.CreateDirectory(srcPath);
-        Run("dotnet", $"new sln -n {solutionName}", rootPath);
+
+        var solutionFile = Path.Combine(rootPath, $"{solutionName}.sln");
+        if (!File.Exists(solutionFile))
+        {
+            Run("dotnet", $"new sln -n {solutionName}", rootPath);
+        }
 
         var createdProjects = new List<string>();
         var createdTestProjects = new List<string>();
 
         foreach (var project in src.Projects)
         {
-            //Directory.CreateDirectory(projectPath);
-            Run("dotnet", $"new {project.Template} -n {project.Name} -f {project.Version}", srcPath);
             var projectPath = Path.Combine(srcPath, project.Name);
-            
-            // Set RootNamespace in .csproj
-            var csprojFile = Path.Combine(projectPath, $"{project.Name}.csproj");
-            PatchCsprojWithNamespace(csprojFile, src.Namespace, project.Name);
-
-            // Add project to solution using absolute path
-            Run("dotnet", $"sln add \"{csprojFile}\"", rootPath);
-
-            createdProjects.Add(project.Name);
-
-            // Install NuGet packages
-            if (project.Packages != null)
+            if (!Directory.Exists(projectPath))
             {
-                foreach (var pkg in project.Packages)
+                Run("dotnet", $"new {project.Template} -n {project.Name} -f {project.Version}", srcPath);
+                
+                // Set RootNamespace in .csproj
+                var csprojFile = Path.Combine(projectPath, $"{project.Name}.csproj");
+                PatchCsprojWithNamespace(csprojFile, src.Namespace, project.Name);
+
+                // Add project to solution using absolute path
+                Run("dotnet", $"sln add \"{csprojFile}\"", rootPath);
+
+                createdProjects.Add(project.Name);
+
+                // Install NuGet packages
+                if (project.Packages != null)
                 {
-                    var versionArg = string.IsNullOrWhiteSpace(pkg.Version) ? "" : $" -v {pkg.Version}";
-                    //Run("dotnet", $"add package {pkg.Name}{versionArg}", projectPath);
+                    foreach (var pkg in project.Packages)
+                    {
+                        var versionArg = string.IsNullOrWhiteSpace(pkg.Version) ? "" : $" -v {pkg.Version}";
+                        //Run("dotnet", $"add package {pkg.Name}{versionArg}", projectPath);
+                    }
                 }
             }
         }
@@ -136,17 +144,20 @@ public static class StructureGenerator
             foreach (var project in src.Projects)
             {
                 var testProjectName = $"{project.Name}.UnitTests";
-
-                Run("dotnet", $"new {tests.Template} -n {testProjectName}", testPath);
                 var testProjectPath = Path.Combine(testPath, testProjectName);
 
-                var testCsprojFilePath = Path.Combine(testProjectPath, $"{testProjectName}.csproj");
+                if (!Directory.Exists(testProjectPath))
+                {
+                    Run("dotnet", $"new {tests.Template} -n {testProjectName}", testPath);
 
-                PatchCsprojWithNamespace(testCsprojFilePath, src.Namespace, project.Name);
+                    var testCsprojFilePath = Path.Combine(testProjectPath, $"{testProjectName}.csproj");
 
-                Run("dotnet", $"sln add \"{testCsprojFilePath}\"", rootPath);
+                    PatchCsprojWithNamespace(testCsprojFilePath, src.Namespace, project.Name);
 
-                createdTestProjects.Add(testProjectName);
+                    Run("dotnet", $"sln add \"{testCsprojFilePath}\"", rootPath);
+
+                    createdTestProjects.Add(testProjectName);
+                }
             }
         }
 
@@ -156,6 +167,10 @@ public static class StructureGenerator
     private static void GenerateWebApp(WebApp web, string webRoot)
     {
         var webPath = Path.Combine(webRoot, web.Name);
+        if (Directory.Exists(webPath))
+        {
+            return;
+        }
         Directory.CreateDirectory(webPath);
 
         if (!string.IsNullOrWhiteSpace(web.Command))
