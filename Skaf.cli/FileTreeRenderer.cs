@@ -167,6 +167,13 @@ public static class FileTreeRenderer
             }
         }
 
+        var removed = previousProjects.Where(p => !currentNames.Contains(p));
+        foreach (var rem in removed)
+        {
+            anyChanges = true;
+            sb.AppendLine($"{subIndent}│   └── \x1b[31m[-] {rem}/\x1b[0m");
+        }
+
         var isNewTests = previousTestProjects.Count == 0 && tests?.GenerateForEachProject == true;
         if (tests?.GenerateForEachProject == true)
         {
@@ -189,13 +196,6 @@ public static class FileTreeRenderer
                     sb.AppendLine(line);
                 }
             }
-        }
-
-        var removed = previousProjects.Where(p => !currentNames.Contains(p));
-        foreach (var rem in removed)
-        {
-            anyChanges = true;
-            sb.AppendLine($"{subIndent}│   └── \x1b[31m[-] {rem}/\x1b[0m");
         }
 
         if (tests?.GenerateForEachProject == true)
@@ -252,6 +252,13 @@ public static class FileTreeRenderer
             }
         }
 
+        var removed = previousProjects?.Where(p => !currentNames.Contains(p)) ?? Enumerable.Empty<string>();
+        foreach (var rem in removed)
+        {
+            anyChanges = true;
+            sb.AppendLine($"{subIndent}│   └── \x1b[31m[-] {rem}/\x1b[0m");
+        }
+
         var isNewTests = (previousTestProjects?.Count ?? 0) == 0 && tests?.GenerateForEachProject == true;
         if (tests?.GenerateForEachProject == true)
         {
@@ -273,13 +280,6 @@ public static class FileTreeRenderer
                     sb.AppendLine(line);
                 }
             }
-        }
-
-        var removed = previousProjects?.Where(p => !currentNames.Contains(p)) ?? Enumerable.Empty<string>();
-        foreach (var rem in removed)
-        {
-            anyChanges = true;
-            sb.AppendLine($"{subIndent}│   └── \x1b[31m[-] {rem}/\x1b[0m");
         }
 
         if (tests?.GenerateForEachProject == true)

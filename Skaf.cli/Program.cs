@@ -46,12 +46,12 @@ buildCommand.SetHandler((FileInfo? file) =>
         
         Console.WriteLine("⚙️ Generating...");
         var result = StructureGenerator.Generate(structure, baseDir);
-        
+        //todo result will be diff if no changes made to project or removal of projects, resulting in skaf.json
+        // file being updated with incorrect structure.
         var outputPath = Path.Combine(baseDir, "skaf.json");
         JsonFileWriter.Write(outputPath, result);
 
         Console.WriteLine("✅  Build completed.");
-        //Console.WriteLine($"📝  Cache written: {result.CachePath}");
     }
     catch (Exception ex)
     {
