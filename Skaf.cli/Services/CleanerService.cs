@@ -1,6 +1,6 @@
-namespace Skaf.cli;
+namespace Skaf.cli.Services;
 
-public static class Cleaner
+public static class CleanerService
 {
     public static void Run(string filePath)
     {

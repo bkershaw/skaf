@@ -1,21 +1,23 @@
-namespace Skaf.cli;
+using Skaf.cli.Constants;
 
-public static class InitializeExample
+namespace Skaf.cli.Services;
+
+public static class InitializeStructureService
 {
   public static void Create(string directoryPath)
   {
-    var filePath = Path.Combine(directoryPath, "structure.yaml");
+    var filePath = Path.Combine(directoryPath, Globals.DefaultStructureFileName);
 
     if (File.Exists(filePath))
     {
-      Console.WriteLine("structure.yaml already exists. Aborting.");
+      Console.WriteLine($"{Globals.DefaultStructureFileName} already exists. Aborting.");
       return;
     }
 
     var exampleYaml = GetExampleYaml();
     File.WriteAllText(filePath, exampleYaml);
 
-    Console.WriteLine($"structure.yaml created at: {filePath}");
+    Console.WriteLine($"{Globals.DefaultStructureFileName} created at: {filePath}");
   }
 
   private static string GetExampleYaml()

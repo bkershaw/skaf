@@ -1,6 +1,7 @@
 using System.Text.Json;
+using Skaf.cli.YamlStructureModels;
 
-namespace Skaf.cli;
+namespace Skaf.cli.Utilities;
 
     public static class JsonFileWriter
     {

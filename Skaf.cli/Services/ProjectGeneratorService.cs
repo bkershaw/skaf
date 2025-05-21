@@ -1,39 +1,9 @@
+using System.Diagnostics;
 using System.Text;
 using System.Xml.Linq;
+using Skaf.cli.YamlStructureModels;
 
-namespace Skaf.cli;
-
-using YamlStructureModels;
-using System.Diagnostics;
-
-public class GeneratedStructureSummary
-{
-    public List<GeneratedService> Services { get; set; } = new();
-    public List<GeneratedComponent> Components { get; set; } = new();
-    public List<GeneratedWebApp> WebApps { get; set; } = new();
-}
-
-public class GeneratedService
-{
-    public string Name { get; set; } = string.Empty;
-    public string Directory { get; set; } = string.Empty;
-    public List<string> Projects { get; set; } = new();
-    public List<string> TestProjects { get; set; } = new();
-}
-
-public class GeneratedComponent
-{
-    public string Name { get; set; } = string.Empty;
-    public string Directory { get; set; } = string.Empty;
-    public List<string> Projects { get; set; } = new();
-    public List<string> TestProjects { get; set; } = new();
-}
-
-public class GeneratedWebApp
-{
-    public string Name { get; set; } = string.Empty;
-    public string Directory { get; set; } = string.Empty;
-}
+namespace Skaf.cli.Services;
 
 public static class StructureGenerator
 {

@@ -1,15 +1,15 @@
+using Skaf.cli.Constants;
 using Skaf.cli.YamlStructureModels;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace Skaf.cli;
-
+namespace Skaf.cli.Utilities;
 
     public static class YamlParser
     {
         public static StructureDefinition Parse(string? filePath = null)
         {
-            filePath ??= Path.Combine(Directory.GetCurrentDirectory(), "structure.yaml");
+            filePath ??= Path.Combine(Directory.GetCurrentDirectory(), Globals.DefaultStructureFileName);
 
             if (!File.Exists(filePath))
             {

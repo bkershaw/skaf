@@ -1,9 +1,9 @@
 using System.Text;
 using Skaf.cli.YamlStructureModels;
 
-namespace Skaf.cli;
+namespace Skaf.cli.Services;
 
-public static class FileTreeRenderer
+public static class FileTreeRendererService
 {
     public static string Render(StructureDefinition structure, GeneratedStructureSummary? previous = null)
     {

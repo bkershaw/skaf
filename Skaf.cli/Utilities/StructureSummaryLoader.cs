@@ -1,8 +1,9 @@
-namespace Skaf.cli;
 using System.Text.Json;
+using Skaf.cli.YamlStructureModels;
 
+namespace Skaf.cli.Utilities;
 
-    public static class StructureSummaryLoader
+public static class StructureSummaryLoader
     {
         public static GeneratedStructureSummary? LoadFromFile(string baseDir)
         {

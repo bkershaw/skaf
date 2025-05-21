@@ -1,10 +1,8 @@
-using Skaf.cli.YamlStructureModels;
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
+using Skaf.cli.Utilities;
 
-namespace Skaf.cli;
+namespace Skaf.cli.Services;
 
-public static class StructureValidator
+public static class StructureValidatorService
 {
     public static void Validate(string filePath)
     {
