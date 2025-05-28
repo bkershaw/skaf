@@ -7,53 +7,97 @@ namespace Skaf.cli.Services;
 
 public static class StructureGenerator
 {
-    public static GeneratedStructureSummary Generate(StructureDefinition structure, string baseDirectory)
+    public static GeneratedStructureSummary Generate(StructureDefinition structure, string baseDirectory, GeneratedStructureSummary? previousSummary = null)
     {
         var summary = new GeneratedStructureSummary();
 
         //todo depends on should use project references properly but its important to create projects first in the right order
-        if (structure.Services != null)
+        var currentServices = structure.Services ?? new List<Service>();
+        var previousServices = previousSummary?.Services ?? new List<GeneratedService>();
+
+        foreach (var service in currentServices)
         {
-            foreach (var service in structure.Services)
+            var previousService = previousServices.FirstOrDefault(s => s.Name == service.Name);
+            var result = GenerateDotnetSolution(Path.Combine(baseDirectory, "Services"), service.Name, service.SolutionName, service.Src, service.Tests, previousService);
+            summary.Services.Add(new GeneratedService
             {
-                var result = GenerateDotnetSolution(Path.Combine(baseDirectory, "Services"), service.Name, service.SolutionName, service.Src, service.Tests);
-                summary.Services.Add(new GeneratedService
-                {
-                    Name = service.Name,
-                    Directory = result.Directory,
-                    Projects = result.Projects,
-                    TestProjects = result.TestProjects
-                });
+                Name = service.Name,
+                Directory = result.Directory,
+                Projects = result.Projects,
+                TestProjects = result.TestProjects
+            });
+        }
+
+        var removedServices = previousServices.Where(p => currentServices.All(s => s.Name != p.Name));
+        foreach (var removed in removedServices)
+        {
+            try
+            {
+                Directory.Delete(removed.Directory, recursive: true);
+                Console.WriteLine($"🗑️ Removed service directory: {removed.Directory}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to remove service directory {removed.Directory}: {ex.Message}");
             }
         }
         
-        if (structure.Components != null)
+        var currentComponents = structure.Components ?? new List<Component>();
+        var previousComponents = previousSummary?.Components ?? new List<GeneratedComponent>();
+
+        foreach (var component in currentComponents)
         {
-            foreach (var component in structure.Components)
+            var previousComponent = previousComponents.FirstOrDefault(c => c.Name == component.Name);
+            var result = GenerateDotnetSolution(Path.Combine(baseDirectory, "Components"), component.Name, component.SolutionName, component.Src, component.Tests, previousComponent);
+            summary.Components.Add(new GeneratedComponent
             {
-                var result = GenerateDotnetSolution(Path.Combine(baseDirectory, "Components"), component.Name, component.SolutionName, component.Src, component.Tests);
-                summary.Components.Add(new GeneratedComponent
-                {
-                    Name = component.Name,
-                    Directory = result.Directory,
-                    Projects = result.Projects,
-                    TestProjects = result.TestProjects
-                });
+                Name = component.Name,
+                Directory = result.Directory,
+                Projects = result.Projects,
+                TestProjects = result.TestProjects
+            });
+        }
+
+        var removedComponents = previousComponents.Where(p => currentComponents.All(c => c.Name != p.Name));
+        foreach (var removed in removedComponents)
+        {
+            try
+            {
+                Directory.Delete(removed.Directory, recursive: true);
+                Console.WriteLine($"🗑️ Removed component directory: {removed.Directory}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to remove component directory {removed.Directory}: {ex.Message}");
             }
         }
 
-        if (structure.Web != null)
-        {
-            foreach (var web in structure.Web)
-            {
-                var webPath = Path.Combine(baseDirectory, "Web", web.Name);
-                GenerateWebApp(web, Path.Combine(baseDirectory, "Web"));
+        var currentWebApps = structure.Web ?? new List<WebApp>();
+        var previousWebApps = previousSummary?.WebApps ?? new List<GeneratedWebApp>();
 
-                summary.WebApps.Add(new GeneratedWebApp
-                {
-                    Name = web.Name,
-                    Directory = webPath
-                });
+        foreach (var web in currentWebApps)
+        {
+            var webPath = Path.Combine(baseDirectory, "Web", web.Name);
+            GenerateWebApp(web, Path.Combine(baseDirectory, "Web"));
+
+            summary.WebApps.Add(new GeneratedWebApp
+            {
+                Name = web.Name,
+                Directory = webPath
+            });
+        }
+
+        var removedWebApps = previousWebApps.Where(p => currentWebApps.All(w => w.Name != p.Name));
+        foreach (var removed in removedWebApps)
+        {
+            try
+            {
+                Directory.Delete(removed.Directory, recursive: true);
+                Console.WriteLine($"🗑️ Removed web app directory: {removed.Directory}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to remove web app directory {removed.Directory}: {ex.Message}");
             }
         }
 
@@ -62,7 +106,7 @@ public static class StructureGenerator
         return summary;
     }
 
-    private static (string Directory, List<string> Projects, List<string> TestProjects) GenerateDotnetSolution(string categoryRoot, string folderName, string solutionName, SrcDefinition src, TestDefinition? tests)
+    private static (string Directory, List<string> Projects, List<string> TestProjects) GenerateDotnetSolution(string categoryRoot, string folderName, string solutionName, SrcDefinition src, TestDefinition? tests, GeneratedService? previous = null)
     {
         var rootPath = Path.Combine(categoryRoot, folderName);
         var srcPath = Path.Combine(rootPath, "src");
@@ -77,7 +121,26 @@ public static class StructureGenerator
         }
 
         var createdProjects = new List<string>();
-        var createdTestProjects = new List<string>();
+
+        {
+            var previousProjectNames = previous?.Projects?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new();
+            var desiredProjects = src.Projects.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var projectsToRemove = previousProjectNames.Except(desiredProjects);
+
+            foreach (var toRemove in projectsToRemove)
+            {
+                var fullPath = Path.Combine(srcPath, toRemove);
+                try
+                {
+                    Directory.Delete(fullPath, recursive: true);
+                    Console.WriteLine($"🗑️ Removed project directory: {fullPath}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️ Failed to remove {fullPath}: {ex.Message}");
+                }
+            }
+        }
 
         foreach (var project in src.Projects)
         {
@@ -107,9 +170,144 @@ public static class StructureGenerator
             }
         }
 
+        var createdTestProjects = new List<string>();
+
         if (tests?.GenerateForEachProject == true)
         {
             Directory.CreateDirectory(testPath);
+
+            {
+                var previousTestProjectNames = previous?.TestProjects?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new();
+                var expectedTestProjects = src.Projects.Select(p => $"{p.Name}.UnitTests").ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var testsToRemove = previousTestProjectNames.Except(expectedTestProjects);
+
+                foreach (var toRemove in testsToRemove)
+                {
+                    var fullPath = Path.Combine(testPath, toRemove);
+                    try
+                    {
+                        Directory.Delete(fullPath, recursive: true);
+                        Console.WriteLine($"🗑️ Removed test project directory: {fullPath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"⚠️ Failed to remove test directory {fullPath}: {ex.Message}");
+                    }
+                }
+            }
+
+            foreach (var project in src.Projects)
+            {
+                var testProjectName = $"{project.Name}.UnitTests";
+                var testProjectPath = Path.Combine(testPath, testProjectName);
+
+                if (!Directory.Exists(testProjectPath))
+                {
+                    Run("dotnet", $"new {tests.Template} -n {testProjectName}", testPath);
+
+                    var testCsprojFilePath = Path.Combine(testProjectPath, $"{testProjectName}.csproj");
+
+                    PatchCsprojWithNamespace(testCsprojFilePath, src.Namespace, project.Name);
+
+                    Run("dotnet", $"sln add \"{testCsprojFilePath}\"", rootPath);
+
+                    createdTestProjects.Add(testProjectName);
+                }
+            }
+        }
+
+        return (rootPath, createdProjects, createdTestProjects);
+    }
+    
+      private static (string Directory, List<string> Projects, List<string> TestProjects) GenerateDotnetSolution(string categoryRoot, string folderName, string solutionName, SrcDefinition src, TestDefinition? tests, GeneratedComponent? previous = null)
+    {
+        var rootPath = Path.Combine(categoryRoot, folderName);
+        var srcPath = Path.Combine(rootPath, "src");
+        var testPath = Path.Combine(rootPath, "tests");
+
+        Directory.CreateDirectory(srcPath);
+
+        var solutionFile = Path.Combine(rootPath, $"{solutionName}.sln");
+        if (!File.Exists(solutionFile))
+        {
+            Run("dotnet", $"new sln -n {solutionName}", rootPath);
+        }
+
+        var createdProjects = new List<string>();
+
+        {
+            var previousProjectNames = previous?.Projects?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new();
+            var desiredProjects = src.Projects.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var projectsToRemove = previousProjectNames.Except(desiredProjects);
+
+            foreach (var toRemove in projectsToRemove)
+            {
+                var fullPath = Path.Combine(srcPath, toRemove);
+                try
+                {
+                    Directory.Delete(fullPath, recursive: true);
+                    Console.WriteLine($"🗑️ Removed project directory: {fullPath}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️ Failed to remove {fullPath}: {ex.Message}");
+                }
+            }
+        }
+
+        foreach (var project in src.Projects)
+        {
+            var projectPath = Path.Combine(srcPath, project.Name);
+            if (!Directory.Exists(projectPath))
+            {
+                Run("dotnet", $"new {project.Template} -n {project.Name} -f {project.Version}", srcPath);
+                
+                // Set RootNamespace in .csproj
+                var csprojFile = Path.Combine(projectPath, $"{project.Name}.csproj");
+                PatchCsprojWithNamespace(csprojFile, src.Namespace, project.Name);
+
+                // Add project to solution using absolute path
+                Run("dotnet", $"sln add \"{csprojFile}\"", rootPath);
+
+                createdProjects.Add(project.Name);
+
+                // Install NuGet packages
+                if (project.Packages != null)
+                {
+                    foreach (var pkg in project.Packages)
+                    {
+                        var versionArg = string.IsNullOrWhiteSpace(pkg.Version) ? "" : $" -v {pkg.Version}";
+                        //Run("dotnet", $"add package {pkg.Name}{versionArg}", projectPath);
+                    }
+                }
+            }
+        }
+
+        var createdTestProjects = new List<string>();
+
+        if (tests?.GenerateForEachProject == true)
+        {
+            Directory.CreateDirectory(testPath);
+
+            {
+                var previousTestProjectNames = previous?.TestProjects?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new();
+                var expectedTestProjects = src.Projects.Select(p => $"{p.Name}.UnitTests").ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var testsToRemove = previousTestProjectNames.Except(expectedTestProjects);
+
+                foreach (var toRemove in testsToRemove)
+                {
+                    var fullPath = Path.Combine(testPath, toRemove);
+                    try
+                    {
+                        Directory.Delete(fullPath, recursive: true);
+                        Console.WriteLine($"🗑️ Removed test project directory: {fullPath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"⚠️ Failed to remove test directory {fullPath}: {ex.Message}");
+                    }
+                }
+            }
 
             foreach (var project in src.Projects)
             {

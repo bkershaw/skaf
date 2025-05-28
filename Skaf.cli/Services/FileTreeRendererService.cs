@@ -33,6 +33,21 @@ public static class FileTreeRendererService
                     if (changed) anyChanges = true;
                 }
             }
+            var removedServices = previous?.Services?.Where(p => structure.Services.All(s => s.Name != p.Name)) ?? Enumerable.Empty<GeneratedService>();
+            foreach (var removedService in removedServices)
+            {
+                anyChanges = true;
+                RenderDotnetStructure(
+                    sb,
+                    removedService.Name,
+                    "Services",
+                    new List<ProjectDefinition>(),
+                    null,
+                    previousProjects: removedService.Projects,
+                    previousTestProjects: removedService.TestProjects,
+                    skipRoot: false
+                );
+            }
         }
 
         // COMPONENTS
@@ -70,6 +85,21 @@ public static class FileTreeRendererService
                     if (changed) anyChanges = true;
                 }
             }
+            var removedComponents = (previous?.Components?.Where(p => structure.Components.All(c => c.Name != p.Name)) ?? Enumerable.Empty<GeneratedComponent>());
+            foreach (var removedComponent in removedComponents)
+            {
+            anyChanges = true;
+            RenderDotnetStructure(
+                sb,
+                removedComponent.Name,
+                "Components",
+                new List<ProjectDefinition>(),
+                null,
+                previousProjects: removedComponent.Projects,
+                previousTestProjects: removedComponent.TestProjects,
+                skipRoot: false
+            );
+            }
         }
 
         // WEB
@@ -94,6 +124,12 @@ public static class FileTreeRendererService
                     sb.AppendLine($"    └── [web files generated via template]");
                 }
             }
+            var removedWebApps = previous?.WebApps?.Where(w => structure.Web.All(c => c.Name != w.Name)) ?? Enumerable.Empty<GeneratedWebApp>();
+            foreach (var removedWebApp in removedWebApps)
+            {
+                anyChanges = true;
+                sb.AppendLine($"\x1b[31m└── [-] {removedWebApp.Name}/\x1b[0m");
+            }
         }
 
         // DEVOPS
@@ -102,7 +138,7 @@ public static class FileTreeRendererService
             sb.AppendLine("DevOps/");
             foreach (var pipeline in structure.Devops.Pipelines)
             {
-                bool isNewPipeline = true; //TODO => //previous?.Devops?.Pipelines == null || !previous.Devops.Pipelines.Contains(pipeline);
+                bool isNewPipeline = true; //previous?.Devops?.Pipelines == null || !previous.Devops.Pipelines.Contains(pipeline);
 
                 if (isNewPipeline)
                 {
@@ -114,6 +150,12 @@ public static class FileTreeRendererService
                     sb.AppendLine($"└── {pipeline}");
                 }
             }
+            // var removedPipelines = previous?.Devops?.Pipelines?.Where(p => !structure.Devops.Pipelines.Contains(p)) ?? Enumerable.Empty<string>();
+            // foreach (var removedPipeline in removedPipelines)
+            // {
+            //     anyChanges = true;
+            //     sb.AppendLine($"\x1b[31m└── [-] {removedPipeline}\x1b[0m");
+            // }
         }
 
         if (previous != null && !anyChanges)
@@ -227,14 +269,20 @@ public static class FileTreeRendererService
         var subIndent = "    ";
         bool anyChanges = false;
 
-        if (!skipRoot) sb.AppendLine($"{indent}{name}/");
-        var isNewSolution = (previousProjects?.Count ?? 0) == 0 && projects.Count > 0;
-        sb.AppendLine(isNewSolution
-            ? $"\x1b[32m{subIndent}├── [+] {name}.sln\x1b[0m"
-            : $"{subIndent}├── {name}.sln");
-        sb.AppendLine(isNewSolution
-            ? $"\x1b[32m{subIndent}├── [+] src/\x1b[0m"
-            : $"{subIndent}├── src/");
+        var isRemoved = projects.Count == 0 && previousProjects?.Count > 0;
+
+        if (!skipRoot)
+        {
+            sb.AppendLine(isRemoved
+                ? $"\x1b[31m{indent}[-] {name}/\x1b[0m"
+                : $"{indent}{name}/");
+        }
+        sb.AppendLine(isRemoved
+            ? $"\x1b[31m{subIndent}├── [-] {name}.sln\x1b[0m"
+            : (projects.Count > 0 ? $"{subIndent}├── {name}.sln" : ""));
+        sb.AppendLine(isRemoved
+            ? $"\x1b[31m{subIndent}├── [-] src/\x1b[0m"
+            : (projects.Count > 0 ? $"{subIndent}├── src/" : ""));
 
         var currentNames = projects.Select(p => p.Name).ToHashSet();
         foreach (var project in projects)
@@ -252,11 +300,12 @@ public static class FileTreeRendererService
             }
         }
 
+        // Always check for removed projects if previousProjects exists, even if projects is empty
         var removed = previousProjects?.Where(p => !currentNames.Contains(p)) ?? Enumerable.Empty<string>();
         foreach (var rem in removed)
         {
             anyChanges = true;
-            sb.AppendLine($"{subIndent}│   └── \x1b[31m[-] {rem}/\x1b[0m");
+            sb.AppendLine($"\x1b[31m{subIndent}│   └── [-] {rem}/\x1b[0m");
         }
 
         var isNewTests = (previousTestProjects?.Count ?? 0) == 0 && tests?.GenerateForEachProject == true;
@@ -282,14 +331,19 @@ public static class FileTreeRendererService
             }
         }
 
-        if (tests?.GenerateForEachProject == true)
+        // Always check for removed test projects if previousTestProjects exists, even if projects is empty
+        if (previousTestProjects != null)
         {
             var currentTestNames = projects.Select(p => $"{p.Name}.UnitTests").ToHashSet();
-            var removedTests = previousTestProjects?.Where(p => !currentTestNames.Contains(p)) ?? Enumerable.Empty<string>();
-            foreach (var rem in removedTests)
+            var removedTests = previousTestProjects.Where(p => !currentTestNames.Contains(p)).ToList();
+            if (removedTests.Any())
             {
                 anyChanges = true;
-                sb.AppendLine($"{subIndent}    └── \x1b[31m[-] {rem}/\x1b[0m");
+                sb.AppendLine($"\x1b[31m{subIndent}└── [-] tests/\x1b[0m");
+                foreach (var rem in removedTests)
+                {
+                    sb.AppendLine($"\x1b[31m{subIndent}    └── [-] {rem}/\x1b[0m");
+                }
             }
         }
 

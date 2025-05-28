@@ -11,4 +11,5 @@ rootCommand.AddCommand(BuildCommand.Create());
 // Run
 //args
 // ex: new[] { "init", "--path", "/Users/10358511/desktop" }
-await rootCommand.InvokeAsync(new[] { "build", "--file", "/Users/10358511/desktop/structure/structure.yaml"});
+// new[] { "build", "--file", "/Users/blakekershaw/Desktop/example-scaf/scaf-structure.yaml"}
+await rootCommand.InvokeAsync(args);

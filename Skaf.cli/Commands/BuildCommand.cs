@@ -50,11 +50,17 @@ public static class BuildCommand
 
         
                 Console.WriteLine("⚙️ Generating...");
-                var result = StructureGenerator.Generate(structure, baseDir);
-                //todo result will be diff if no changes made to project or removal of projects, resulting in skaf.json
-                // file being updated with incorrect structure.
-                var outputPath = Path.Combine(baseDir, "skaf.json");
-                JsonFileWriter.Write(outputPath, result);
+                var result = StructureGenerator.Generate(structure, baseDir, previousSummary);
+          
+                var reconciled = StructureReconcilerService.Reconcile(previousSummary, result);
+
+                Console.WriteLine("➕ Added: " + string.Join(", ", reconciled.Added));
+                Console.WriteLine("➖ Removed: " + string.Join(", ", reconciled.Removed));
+                Console.WriteLine("✔️ Unchanged: " + string.Join(", ", reconciled.Unchanged));
+                
+                
+                var outputPath = Path.Combine(baseDir, Globals.DefaultScaffoldStructureOutputFileName);
+                JsonFileWriter.Write(outputPath, reconciled.ReconciledSummary);
 
                 Console.WriteLine("✅  Build completed.");
             }
